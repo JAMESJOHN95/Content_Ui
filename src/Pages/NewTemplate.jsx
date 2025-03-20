@@ -15,11 +15,18 @@ import OrderedList from "@tiptap/extension-ordered-list";
 import { FaImage } from "react-icons/fa6";
 import { IoLinkOutline } from "react-icons/io5";
 import { RxText } from "react-icons/rx";
+import { FaCode } from "react-icons/fa6";
 import { IoInformationCircleOutline } from "react-icons/io5";
+import { v4 as uuidv4 } from "uuid";
 
 function NewTemplate() {
   const [templateBody, setTemplateBody] = useState("");
-  const [borderColor, setBorderColor] = useState("grey");
+  const [showStructures, setShowStructures] = useState(false);
+  const [droppedContent, setDroppedContent] = useState("");
+  const [showContents, setShowContents] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [columns, setColumns] = useState([]);
 
   const editor = useEditor({
     extensions: [
@@ -48,22 +55,67 @@ function NewTemplate() {
   const handleDrop = (event) => {
     event.preventDefault();
     const type = event.dataTransfer.getData("text");
+    if (!type) return;
 
-    if (!editor) return;
+    if (type === "1:1 column") {
+      const newColumn = {
+        id: uuidv4(),
+        type,
+        structure: [
+          { id: uuidv4(), content: "" }, // First div
+          { id: uuidv4(), content: "" }, // Second div
+        ],
+      };
 
-    if (type === "text") {
-      editor.chain().focus().insertContent("Sample Text").run();
-    } else if (type === "image") {
-      editor
-        .chain()
-        .focus()
-        .insertContent(
-          '<img src="https://via.placeholder.com/150" alt="Placeholder" />'
-        )
-        .run();
-    } else if (type === "link") {
-      editor.chain().focus().insertContent('<a href="#">Sample Link</a>').run();
+      setColumns((prevColumns) => [...prevColumns, newColumn]);
     }
+
+    if (type === "image") {
+      document.getElementById("imageUpload").click();
+    } else if (type === "code") {
+      //open code input modal
+      setShowCodeModal(true);
+    } else {
+      let content = "";
+      if (type === "text") {
+        content = prompt("Enter your text:", "Sample Text") || "Sample Text";
+      } else if (type === "link") {
+        content =
+          prompt("Enter URL:", "https://example.com") || "https://example.com";
+      } else if (type === "code") {
+        content = `\n<pre><code>${prompt(
+          "Enter your code:",
+          "console.log('Hello World');"
+        )}</code></pre>\n`;
+      } else {
+        content = type;
+      }
+      setDroppedContent((prev) => prev + "\n" + content);
+    }
+  };
+
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setDroppedContent(
+          (prev) =>
+            prev + `\n<img src="${e.target.result}" alt="Uploaded Image" />\n`
+        );
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveCode = () => {
+    if (codeInput.trim()) {
+      setDroppedContent(
+        (prev) => prev + `\n<pre><code>${codeInput}</code></pre>\n`
+      );
+    }
+    setShowCodeModal(false);
+    setCodeInput("");
   };
 
   return (
@@ -74,72 +126,95 @@ function NewTemplate() {
           <Layout />
         </div> */}
 
-        {/* Stucture for Drag and Drop */}
-        <div className="col-md-1 p-2 text-center">
-          {/* Drag & Drop Sidebar */}
-          <div className="p-3 border-end bg-light">
-            <ul className="list-unstyled">
-              <li
-                className="p-2 border rounded mb-2 bg-white"
-                draggable
-                onDragStart={(e) => handleDragStart(e, "text")}
-              >
-                <RxText />
-              </li>
-              <li
-                className="p-2 border rounded mb-2 bg-white"
-                draggable
-                onDragStart={(e) => handleDragStart(e, "image")}
-              >
-                <FaImage />
-              </li>
-              <li
-                className="p-2 border rounded mb-2 bg-white"
-                draggable
-                onDragStart={(e) => handleDragStart(e, "link")}
-              >
-                <IoLinkOutline />
-              </li>
-            </ul>
-          </div>
-        </div>
-
         {/* Structure for columns */}
-        <div className="col-md-2 p-2 text-center">
-          <div className="d-flex justify-content-between align-items-center p-2 mb-4">
-            {/* heading part for columns section */}
-            <h5 className="mt-2">Structres</h5>
-            {/* more info on columns section */}
-            <a href="#">
-              <IoInformationCircleOutline />
-            </a>
-          </div>
-        
-          {/* Columns Section */}
-          <div className="d-flex flex-column align-items-center justify-content-center p-2 w-100">
-            {[
-              "1:1 column",
-              "1:2 column Left",
-              "1:3 column Left",
-              "2:1 column Right",
-              "2:2 column",
-              "3:1 column Right",
-              "3:3 column",
-              "4:4 column",
-              "n:n column",
-            ].map((text, index) => (
-              <div
-                key={index}
-                className="border border-dark rounded p-3 w-100 text-center bg-white mb-2"
+        <div className="col-md-2 p-2 text-center border-end">
+          <div className="d-flex flex-column justify-content-between align-items-center p-2 mb-2">
+            {/* Dropdown  for selecting structure */}
+            <button
+              style={{
+                cursor: "pointer",
+                backgroundColor: "white",
+                border: "1px solid #333",
+              }}
+              onClick={() => setShowStructures(!showStructures)}
+              className="btn w-100 mb-3"
+            >
+              Structures
+            </button>
+            {showStructures && (
+              <ul className="list-unstyled w-100">
+                <li
+                  className="p-3 border border-dark rounded mb-2 bg-white text-center fw-bold w-100"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, "1:1 column")}
+                  style={{ cursor: "grab" }}
+                >
+                  1:1 Column
+                </li>
+              </ul>
+            )}
+            <div className="p-0 w-100">
+              {/* Dropdown for selecting content */}
+              <button
+                style={{
+                  cursor: "pointer",
+                  backgroundColor: "white",
+                  border: "1px solid #333",
+                }}
+                onClick={() => setShowContents(!showContents)}
+                className="btn w-100 mb-3"
               >
-                <p className="mb-0 fw-bold">{text}</p>
-              </div>
-            ))}
+                Contents
+              </button>
+              {showContents && (
+                <ul className="list-unstyled ">
+                  <li
+                    className="p-3 border border-dark rounded mb-2 bg-white text-center fw-bold w-100"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, "text")}
+                    style={{ cursor: "grab" }}
+                  >
+                    <RxText /> Text
+                  </li>
+                  <li
+                    className="p-3 border rounded mb-2 bg-white text-center fw-bold w-100"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, "image")}
+                    style={{ cursor: "grab" }}
+                  >
+                    <FaImage /> Image
+                  </li>
+                  <li
+                    className="p-3 border rounded mb-2 bg-white text-center fw-bold w-100"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, "link")}
+                    style={{ cursor: "grab" }}
+                  >
+                    <IoLinkOutline /> Link
+                  </li>
+                  <li
+                    className="p-3 border rounded mb-2 bg-white text-center fw-bold w-100"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, "")}
+                    style={{ cursor: "grab" }}
+                  >
+                    <FaCode /> Code
+                  </li>
+                </ul>
+              )}
+              <input
+                type="file"
+                id="imageUpload"
+                style={{ display: "none" }}
+                accept="image/*"
+                onChange={handleImageUpload}
+              />
+            </div>
           </div>
         </div>
 
         {/* Form Section */}
-        <div className="col-md-9 mt-4">
+        <div className="col-md-10 mt-4">
           <h2 className="fw-bold mb-4">Create Template</h2>
 
           <div className="row">
@@ -150,15 +225,17 @@ function NewTemplate() {
                 <label className="form-label fw-semibold">
                   Category <span className="text-danger">*</span>
                 </label>
-                  <select className="form-select">
-                  <option value="" disabled>Category...</option>
+                <select className="form-select">
+                  <option value="" disabled>
+                    Category...
+                  </option>
                   <option value="">SD</option>
                   <option value="">QWP</option>
                 </select>
               </div>
 
               {/* Subject */}
-             {/*  <div className="mb-4">
+              {/*  <div className="mb-4">
                 <label className="form-label fw-semibold">
                   Subject <span className="text-danger">*</span>
                 </label>
@@ -189,7 +266,7 @@ function NewTemplate() {
               </div>
 
               {/* Visible for Everyone */}
-            {/*   <div className="mb-4">
+              {/*   <div className="mb-4">
                 <label className="form-label fw-semibold">
                   Visible for everyone?
                 </label>
@@ -309,22 +386,59 @@ function NewTemplate() {
                 >
                   <i class="fa-solid fa-link"></i>
                 </button>
-                {/* <button className='btn' onClick={() => editor.chain().focus().unsetAllMarks().run()}>
-                  Clear
-                </button> */}
+                <button className="btn" onClick={() => setDroppedContent("")}>
+                  <i class="fa-solid fa-trash"></i>
+                </button>
               </div>
             )}
 
             {/* TipTap Editor */}
-            <div
-              className="mb-4 border"
-              onDrop={handleDrop}
-              onDragOver={(e) => e.preventDefault()}
-            >
-              <EditorContent
-                editor={editor}
-                className="editor-content border p-5"
-              />
+            <div className="mb-3">
+              <div
+                className="border p-4"
+                style={{ minHeight: "300px" }}
+                onDrop={handleDrop}
+                onDragOver={(e) => e.preventDefault()}
+              >
+                {columns.length > 0 &&
+                  columns.map((column) => (
+                    <div
+                      key={column.id}
+                      className="border p-3 mb-3 bg-light w-100 d-flex gap-2"
+                    >
+                      {column.structure.map((block) => (
+                        <div
+                          key={block.id}
+                          className="border p-2 bg-white flex-grow-1"
+                          style={{ width: "50%" }}
+                        >
+                          <input
+                            type="text"
+                            className="form-control"
+                            value={block.content}
+                            onChange={(e) => {
+                              setColumns((prevColumns) =>
+                                prevColumns.map((col) =>
+                                  col.id === column.id
+                                    ? {
+                                        ...col,
+                                        structure: col.structure.map((b) =>
+                                          b.id === block.id
+                                            ? { ...b, content: e.target.value }
+                                            : b
+                                        ),
+                                      }
+                                    : col
+                                )
+                              );
+                            }}
+                            placeholder="Drop content here"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
 
@@ -367,6 +481,33 @@ function NewTemplate() {
               </button>
             </div>
           </div>
+
+          {/* Code Input Modal */}
+          {showCodeModal && (
+            <div className="modal-overlay">
+              <div className="modal-content">
+                <h5>Enter Code</h5>
+                <textarea
+                  className="form-control"
+                  rows="5"
+                  value={codeInput}
+                  onChange={(e) => setCodeInput(e.target.value)}
+                />
+                <button
+                  className="btn btn-primary mt-2"
+                  onClick={handleSaveCode}
+                >
+                  Save
+                </button>
+                <button
+                  className="btn btn-secondary mt-2"
+                  onClick={() => setShowCodeModal(false)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
