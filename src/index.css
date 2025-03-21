@@ -2,6 +2,15 @@ body{
   padding-top: 60px;
   overflow-x: hidden;
 }
+
+.tiptap:focus {
+  outline: none !important; /* Removes the blue outline */
+}
+
+.tiptap{
+  border: 1px solid black;
+}
+
 @media (min-width: 992px) {
   .side-bar {
     left: 0 !important; /* Keep it visible on large screens */

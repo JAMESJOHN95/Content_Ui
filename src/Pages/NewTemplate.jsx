@@ -61,21 +61,54 @@ function NewTemplate() {
     const type = event.dataTransfer.getData("text");
     if (!type) return;
 
-    if (type === "1:1 column") {
-      const newColumn = {
-        id: uuidv4(),
-        type,
-        structure: [
-          { id: uuidv4(), content: "" }, // First div
-          { id: uuidv4(), content: "" }, // Second div
-        ],
-      };
+    let structure = [];
 
-      setColumns((prevColumns) => [...prevColumns, newColumn]);
+    if (type === "1:1 column") {
+      structure = [
+        {
+          id: uuidv4(),
+          content: "",
+        },
+        {
+          id: uuidv4(),
+          content: "",
+        },
+      ];
+    } else if (type === "2:1 column") {
+      structure = [
+        { id: uuidv4(), content: "" }, // 2 parts
+        { id: uuidv4(), content: "" }, // 1 part
+      ];
+    } else if (type === "2:2 column") {
+      structure = [
+        { id: uuidv4(), content: "" },
+        { id: uuidv4(), content: "" },
+      ];
+    } else if (type === "3:3 column") {
+      structure = [
+        { id: uuidv4(), content: "" },
+        { id: uuidv4(), content: "" },
+        { id: uuidv4(), content: "" },
+      ];
+    } else if (type === "4:4 column") {
+      structure = [
+        { id: uuidv4(), content: "" },
+        { id: uuidv4(), content: "" },
+        { id: uuidv4(), content: "" },
+        { id: uuidv4(), content: "" },
+      ];
     } else {
-      // For other content types
+      // For other content types like image, text etc..
       handleDirectContainerDrop(type, event);
     }
+    //handle the columns
+    const newColumn = {
+      id: uuidv4(),
+      type,
+      structure,
+    };
+
+    setColumns((prevColumns) => [...prevColumns, newColumn]);
   };
 
   // Function to add content to the container
@@ -93,40 +126,121 @@ function NewTemplate() {
   const handleDirectContainerDrop = (type, event) => {
     // Only process if we're not dropping into a column input
     if (!currentDropTarget) {
+      let content = "";
+      let contentType = type;
       if (type === "image") {
-        document.getElementById("imageUpload").click();
-        // Set a flag to indicate the upload is for the container
-        setCurrentDropTarget({ isContainer: true });
+        //Ensure only placeholder is added
+        if (
+          !containerContent.some((item) => item.type === "image-placeholder")
+        ) {
+          addContentToContainer("image-placeholder", "+ upload an image");
+          setCurrentDropTarget({ isContainer: true });
+        }
+        return; // Stop further execution to prevent duplication
       } else if (type === "code") {
         setShowCodeModal(true);
         // Set a flag to indicate the code is for the container
         setCurrentDropTarget({ isContainer: true });
+        return;
+      } else if (type === "text") {
+        content = prompt("Enter your text:", "Sample Text") || "Sample Text";
+      } else if (type === "link") {
+        content =
+          prompt("Enter URL:", "https://example.com") || "https://example.com";
       } else {
-        let content = "";
-        let contentType = type;
-
-        if (type === "text") {
-          content = prompt("Enter your text:", "Sample Text") || "Sample Text";
-        } else if (type === "link") {
-          content =
-            prompt("Enter URL:", "https://example.com") ||
-            "https://example.com";
-        } else {
-          content = type;
-        }
-
-        // Add the content directly to the container
+        content = type;
+      }
+      // Prevent duplicate entries for all content types
+      if (
+        !containerContent.some(
+          (item) => item.type === contentType && item.content === content
+        )
+      ) {
         addContentToContainer(contentType, content);
       }
     } else {
-      // This is a drop on a column input, use the existing handler
       handleContentDrop(type);
     }
   };
 
+  //   const handleContentDrop = (type) => {
+  //     if (!currentDropTarget) return;
+
+  //     if (type === "image") {
+  //       //for column inputs , we'll also use placeholder approach
+  //       if (
+  //         currentDropTarget &&
+  //         currentDropTarget.columnId &&
+  //         currentDropTarget.blockId
+  //       ) {
+  //         //update the column content
+  //         updateColumnContent(
+  //           currentDropTarget.columnId,
+  //           currentDropTarget.blockId,
+  //           "+ upload an image"
+  //         );
+  //         // to keep track of this target when the user clicks the + button
+  //         const target = { ...currentDropTarget, isImage: true };
+  //         setCurrentDropTarget(target);
+  //       }
+  //     } else if (type === "code") {
+  //       setShowCodeModal(true);
+  //     } else {
+  //       let content = "";
+  //       if (type === "text") {
+  //         content = prompt("Enter your text:", "Sample Text") || "Sample Text";
+  //       } else if (type === "link") {
+  //         content =
+  //           prompt("Enter URL:", "https://example.com") || "https://example.com";
+  //       } else {
+  //         content = type;
+  //       }
+
+  //       // Check if we have a current drop target
+  //       if (
+  //         currentDropTarget &&
+  //         currentDropTarget.columnId &&
+  //         currentDropTarget.blockId
+  //       ) {
+  //         // Update the specific column's input
+  //         updateColumnContent(
+  //           currentDropTarget.columnId,
+  //           currentDropTarget.blockId,
+  //           content
+  //         );
+  //         setCurrentDropTarget(null); // Reset the drop target after updating
+  //       } else if (!currentDropTarget) {
+  //         // Only insert into editor if content is NOT an image or code
+  //         if (editor && type !== "image" && type !== "code" && type !== "link") {
+  //           editor.commands.insertContent(content);
+  //         } else {
+  //         // Add content directly to editor if no specific target
+  //         if (editor) {
+  //           editor.commands.insertContent(content);
+  //         }
+  //         // Also update droppedContent state for tracking
+  //         setDroppedContent((prev) => prev + "\n" + content);
+  //       }
+  //     }
+  //   }
+  // };
+
   const handleContentDrop = (type) => {
+    if (!currentDropTarget) return;
+
     if (type === "image") {
-      document.getElementById("imageUpload").click();
+      // For column inputs, use a placeholder approach
+      if (currentDropTarget.columnId && currentDropTarget.blockId) {
+        // Update the column content
+        updateColumnContent(
+          currentDropTarget.columnId,
+          currentDropTarget.blockId,
+          "+ upload an image"
+        );
+        // To keep track of this target when the user clicks the + button
+        const target = { ...currentDropTarget, isImage: true };
+        setCurrentDropTarget(target);
+      }
     } else if (type === "code") {
       setShowCodeModal(true);
     } else {
@@ -141,7 +255,7 @@ function NewTemplate() {
       }
 
       // Check if we have a current drop target
-      if (currentDropTarget) {
+      if (currentDropTarget.columnId && currentDropTarget.blockId) {
         // Update the specific column's input
         updateColumnContent(
           currentDropTarget.columnId,
@@ -149,13 +263,12 @@ function NewTemplate() {
           content
         );
         setCurrentDropTarget(null); // Reset the drop target after updating
-      } else {
-        // Add content directly to editor if no specific target
-        if (editor) {
+      } else if (!currentDropTarget) {
+        // Only insert into editor if content is NOT an image, code, or link
+        if (editor && type !== "image" && type !== "code" && type !== "link") {
           editor.commands.insertContent(content);
+          setDroppedContent((prev) => prev + "\n" + content);
         }
-        // Also update droppedContent state for tracking
-        setDroppedContent((prev) => prev + "\n" + content);
       }
     }
   };
@@ -167,7 +280,10 @@ function NewTemplate() {
   };
 
   const handleInputDragLeave = () => {
-    setCurrentDropTarget(null);
+    //Only reset if not an image upload in progress
+    if (!currentDropTarget || !currentDropTarget.isImage) {
+      setCurrentDropTarget(null);
+    }
   };
 
   const handleInputDrop = (e, columnId, blockId) => {
@@ -179,7 +295,8 @@ function NewTemplate() {
 
     if (type === "image") {
       // Save target info before clicking to upload
-      setCurrentDropTarget({ columnId, blockId });
+      updateColumnContent(columnId, blockId, "+ upload an image");
+      setCurrentDropTarget({ columnId, blockId, isImage: true });
       document.getElementById("imageUpload").click();
     } else if (type === "code") {
       // Save target info before opening modal
@@ -207,12 +324,26 @@ function NewTemplate() {
           ? {
               ...col,
               structure: col.structure.map((block) =>
-                block.id === blockId ? { ...block, content: content } : block
+                block.id === blockId
+                  ? { ...block, content: content } // Update content only
+                  : block
               ),
             }
           : col
       )
     );
+  };
+
+  // Function to handle the image placeholder click
+  const handleImagePlaceholderClick = (target) => {
+    setActiveImageUpload(target);
+    document.getElementById("imageUpload").click();
+  };
+
+  //Function to handle the + button click for image upload
+  const handleImageUploadFunciton = (target) => {
+    setActiveImageUpload(target);
+    document.getElementById("imageUpload").click();
   };
 
   // Updated handleImageUpload function
@@ -222,12 +353,26 @@ function NewTemplate() {
       const reader = new FileReader();
       reader.onload = (e) => {
         const imageContent = `Image: ${file.name}`;
-
-        if (currentDropTarget) {
+        if (activeImageUpload) {
+          if (activeImageUpload.isContainer) {
+            // For container
+            removeContainerItem(activeImageUpload.itemId);
+            addContentToContainer("image", imageContent);
+          } else if (activeImageUpload.columnId && activeImageUpload.blockId) {
+            // For column input
+            updateColumnContent(
+              activeImageUpload.columnId,
+              activeImageUpload.blockId,
+              imageContent
+            );
+          }
+          setActiveImageUpload(null);
+          setCurrentDropTarget(null);
+        } else if (currentDropTarget) {
           if (currentDropTarget.isContainer) {
             // For container
             addContentToContainer("image", imageContent);
-          } else {
+          } else if (currentDropTarget.columnId && currentDropTarget.blockId) {
             // For column input
             updateColumnContent(
               currentDropTarget.columnId,
@@ -235,10 +380,7 @@ function NewTemplate() {
               imageContent
             );
           }
-          setCurrentDropTarget(null); // Reset after updating
-        } else {
-          // Default case - add to the container
-          addContentToContainer("image", imageContent);
+          setCurrentDropTarget(null);
         }
       };
       reader.readAsDataURL(file);
@@ -317,12 +459,213 @@ function NewTemplate() {
     setDroppedContent("");
   };
 
+  // Helper function to render input field
+  const renderInputField = (block) => {
+    const isImagePlaceholder =
+      block.content && block.content.includes("+ upload an image");
+
+    return (
+      <div className="input-group">
+        <input
+          type="text"
+          className="form-control"
+          value={block.content}
+          onChange={(e) => {
+            const column = columns.find((col) =>
+              col.structure.some((b) => b.id === block.id)
+            );
+            if (column) {
+              updateColumnContent(column.id, block.id, e.target.value);
+            }
+          }}
+          placeholder="Drop content here"
+          onDragOver={(e) => {
+            const column = columns.find((col) =>
+              col.structure.some((b) => b.id === block.id)
+            );
+            if (column) {
+              handleInputDragOver(e, column.id, block.id);
+            }
+          }}
+          onDragLeave={handleInputDragLeave}
+          onDrop={(e) => {
+            const column = columns.find((col) =>
+              col.structure.some((b) => b.id === block.id)
+            );
+            if (column) {
+              handleInputDrop(e, column.id, block.id);
+            }
+          }}
+        />
+        {isImagePlaceholder ? (
+          <button
+            className="btn btn-outline-primary"
+            type="button"
+            onClick={() => {
+              const column = columns.find((col) =>
+                col.structure.some((b) => b.id === block.id)
+              );
+              if (column) {
+                handleImagePlaceholderClick({
+                  columnId: column.id,
+                  blockId: block.id,
+                });
+              }
+            }}
+          >
+            <FaPlus />
+          </button>
+        ) : (
+          <button
+            className="btn btn-outline-secondary"
+            type="button"
+            onClick={() => {
+              const column = columns.find((col) =>
+                col.structure.some((b) => b.id === block.id)
+              );
+              if (column) {
+                clearInputContent(column.id, block.id);
+              }
+            }}
+          >
+            <i className="fa-solid fa-times"></i>
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  // Helper function to get column layout based on type
+  const getColumnLayout = (type, blocks) => {
+    if (type === "1:1 column") {
+      // Two equal columns
+      return (
+        <div className="d-flex gap-2">
+          {blocks.map((block) => (
+            <div
+              key={block.id}
+              className="border p-2 bg-white flex-grow-1 position-relative"
+              style={{ width: "50%" }}
+            >
+              {renderInputField(block)}
+            </div>
+          ))}
+        </div>
+      );
+    } else if (type === "2:1 column") {
+      // First column takes 2/3, second takes 1/3
+      return (
+        <div className="d-flex gap-2">
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "66.67%" }}
+          >
+            {renderInputField(blocks[0])}
+          </div>
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "33.33%" }}
+          >
+            {renderInputField(blocks[1])}
+          </div>
+        </div>
+      );
+    } else if (type === "2:2 column") {
+      // Two equal columns in one row
+      return (
+        <div className="d-flex gap-2">
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "50%" }}
+          >
+            {renderInputField(blocks[0])}
+          </div>
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "50%" }}
+          >
+            {renderInputField(blocks[1])}
+          </div>
+        </div>
+      );
+    } else if (type === "3:3 column") {
+      // Three equal columns in one row
+      return (
+        <div className="d-flex gap-2">
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "33.33%" }}
+          >
+            {renderInputField(blocks[0])}
+          </div>
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "33.33%" }}
+          >
+            {renderInputField(blocks[1])}
+          </div>
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "33.33%" }}
+          >
+            {renderInputField(blocks[2])}
+          </div>
+        </div>
+      );
+    } else if (type === "4:4 column") {
+      // Four equal columns in one row
+      return (
+        <div className="d-flex gap-2">
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "25%" }}
+          >
+            {renderInputField(blocks[0])}
+          </div>
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "25%" }}
+          >
+            {renderInputField(blocks[1])}
+          </div>
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "25%" }}
+          >
+            {renderInputField(blocks[2])}
+          </div>
+          <div
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: "25%" }}
+          >
+            {renderInputField(blocks[3])}
+          </div>
+        </div>
+      );
+    }
+
+    //default fallback
+    return (
+      <div className="d-flex gap-2">
+        {blocks.map((block) => (
+          <div
+            key={block.id}
+            className="border p-2 bg-white flex-grow-1 position-relative"
+            style={{ width: `${100 / blocks.length}%` }}
+          >
+            {renderInputField(block)}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="container-fluid">
       <div className="row">
         {/* Structure for columns */}
         <div className="col-md-2 p-2 text-center border-end">
-          <div className="d-flex flex-column justify-content-between align-items-center p-2 mb-2">
+          <div className="d-flex flex-column justify-content-between align-items-center p-2 ">
             {/* Dropdown  for selecting structure */}
             <button
               style={{
@@ -331,7 +674,7 @@ function NewTemplate() {
                 border: "1px solid #333",
               }}
               onClick={() => setShowStructures(!showStructures)}
-              className="btn w-100 mb-3"
+              className="btn w-100 mb-3 mt-3"
             >
               Structures
             </button>
@@ -344,6 +687,38 @@ function NewTemplate() {
                   style={{ cursor: "grab" }}
                 >
                   1:1 Column
+                </li>
+                <li
+                  className="p-3 border border-dark rounded mb-2 bg-white text-center fw-bold w-100"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, "2:1 column")}
+                  style={{ cursor: "grab" }}
+                >
+                  2:1 Column Right
+                </li>
+                <li
+                  className="p-3 border border-dark rounded mb-2 bg-white text-center fw-bold w-100"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, "2:2 column")}
+                  style={{ cursor: "grab" }}
+                >
+                  2:2 Column
+                </li>
+                <li
+                  className="p-3 border border-dark rounded mb-2 bg-white text-center fw-bold w-100"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, "3:3 column")}
+                  style={{ cursor: "grab" }}
+                >
+                  3:3 Column
+                </li>
+                <li
+                  className="p-3 border border-dark rounded mb-2 bg-white text-center fw-bold w-100"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, "4:4 column")}
+                  style={{ cursor: "grab" }}
+                >
+                  4:4 Column
                 </li>
               </ul>
             )}
@@ -454,9 +829,10 @@ function NewTemplate() {
             {/* Toolbar */}
             {editor && (
               <div
-                className="editor-toolbar p-1 border"
+                className="editor-toolbar p-1 border d-flex justify-content-between align-items-center"
                 style={{ backgroundColor: "lightgrey" }}
               >
+                <div>
                 <button
                   className="btn"
                   onClick={() => editor.chain().focus().toggleBold().run()}
@@ -561,6 +937,12 @@ function NewTemplate() {
                 <button className="btn" onClick={clearAllContent}>
                   <i className="fa-solid fa-trash"></i>
                 </button>
+                </div>
+                <div>
+                  <button className="btn border border-radius-50 bg-black text-white">
+                  Save
+                  </button>
+                </div>
               </div>
             )}
 
@@ -571,6 +953,9 @@ function NewTemplate() {
                 onDrop={handleDrop}
                 onDragOver={(e) => e.preventDefault()}
               >
+              <EditorContent className=""  editor={editor}/>
+                
+
                 {/* Render direct container content */}
                 {containerContent.map((item) => (
                   <div
@@ -580,7 +965,8 @@ function NewTemplate() {
                       backgroundColor:
                         item.type === "text"
                           ? "#f8f9fa"
-                          : item.type === "image"
+                          : item.type === "image" ||
+                            item.type === "image-placeholder"
                           ? "#e7f5ff"
                           : item.type === "link"
                           ? "#fff9db"
@@ -596,20 +982,29 @@ function NewTemplate() {
                             <FaImage className="me-2" /> {item.content}
                           </div>
                         )}
+                        {item.type === "image-placeholder" && (
+                          <div className="d-flex align-items-center">
+                            <FaImage className="me-2" /> {item.content}
+                            <button
+                              className="btn btn-sm btn-outline-primary ms-2"
+                              onClick={() =>
+                                handleImageUploadFunciton({
+                                  isContainer: true,
+                                  itemId: item.id,
+                                })
+                              }
+                            >
+                              <FaPlus size={12} />
+                            </button>
+                          </div>
+                        )}
                         {item.type === "link" && (
                           <div className="d-flex align-items-center">
-                            <IoLinkOutline className="me-2" />
-                            <a
-                              href={item.content}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              {item.content}
-                            </a>
+                            <IoLinkOutline className="me-2" /> {item.content}
                           </div>
                         )}
                         {item.type === "text" && (
-                          <div>
+                          <div className="d-flex align-items-center">
                             <RxText className="me-2" /> {item.content}
                           </div>
                         )}
@@ -629,147 +1024,89 @@ function NewTemplate() {
                   </div>
                 ))}
 
-                {/* Render columns */}
-                {columns.length > 0 &&
-                  columns.map((column) => (
-                    <div
-                      key={column.id}
-                      className="border p-3 mb-3 bg-light w-100"
-                    >
-                      <div className="d-flex justify-content-between align-items-center mb-2">
-                        <span className="fw-bold">1:1 Column</span>
-                        <button
-                          className="btn btn-sm btn-outline-danger"
-                          onClick={() => removeColumn(column.id)}
-                        >
-                          <i className="fa-solid fa-times"></i>
-                        </button>
-                      </div>
-                      <div className="d-flex gap-2">
-                        {column.structure.map((block) => (
-                          <div
-                            key={block.id}
-                            className="border p-2 bg-white flex-grow-1 position-relative"
-                            style={{ width: "50%" }}
-                          >
-                            <div className="input-group">
-                              <input
-                                type="text"
-                                className="form-control"
-                                value={block.content}
-                                onChange={(e) => {
-                                  updateColumnContent(
-                                    column.id,
-                                    block.id,
-                                    e.target.value
-                                  );
-                                }}
-                                placeholder="Drop content here"
-                                onDragOver={(e) =>
-                                  handleInputDragOver(e, column.id, block.id)
-                                }
-                                onDragLeave={handleInputDragLeave}
-                                onDrop={(e) =>
-                                  handleInputDrop(e, column.id, block.id)
-                                }
-                              />
-                              <button
-                                className="btn btn-outline-secondary"
-                                type="button"
-                                onClick={() =>
-                                  clearInputContent(column.id, block.id)
-                                }
-                              >
-                                <i className="fa-solid fa-times"></i>
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                {/* Column layouts rendering */}
+                {columns.map((column) => (
+                  <div
+                    key={column.id}
+                    // className="mb-3 border p-2 position-relative"
+                  >
+                    {/* Column header with remove button */}
+                   {/*  <div className="d-flex justify-content-between align-items-center mb-2 p-1 bg-light">
+                      <span className="text-muted small">{column.type}</span>
+                      <button
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => removeColumn(column.id)}
+                      >
+                        <i className="fa-solid fa-times"></i>
+                      </button>
+                    </div> */}
 
-                {/* Show placeholder text when empty */}
-                {containerContent.length === 0 && columns.length === 0 && (
-                  <div className="text-center text-muted py-5">
-                    <p>Drag and drop content or structures here</p>
+                    {/* Column content */}
+                    {getColumnLayout(column.type, column.structure)}
                   </div>
-                )}
+                ))}
               </div>
             </div>
           </div>
 
-          {/* Available Attributes */}
-          <div className="mb-2 border p-3">
-            <strong>Available Attributes:</strong>
-            <p>
-              First Name:{" "}
-              <code style={{ color: "black" }}>{"{{FirstName}}"}</code>
-              <br />
-              Last Name:{" "}
-              <code style={{ color: "black" }}>{"{{LastName}}"}</code>
-              <br />
-              Email: <code style={{ color: "black" }}>{"{{Email}}"}</code>
-            </p>
-
-            <small className="text-muted">
-              Attributes are case-sensitive. Mail couldn't send with invalid
-              attributes.
-            </small>
-          </div>
-
-          <div className="row p-2 d-flex justify-content-center align-items-center">
-            <div className="col-md-10 p-2">
-              {" "}
-              <label htmlFor="uploadImage" className="form-control w-100 p-3 ">
-                <input
-                  type="file"
-                  id="uploadImage" /* style={{display:'none'}} */
-                />
-                {/* <img src="https://appflowy.com/_next/static/media/upload-cloud.8e4f70a0.png" alt="no image"/> */}
-              </label>
-            </div>
-            <div className="col-md-2 text-end">
-              <button
-                className="btn px-5 py-3 mt-2"
-                style={{ backgroundColor: "black", color: "white" }}
-              >
-                Upload Image
-              </button>
-            </div>
-          </div>
-
-          {/* Code Input Modal */}
+          {/* Code Modal */}
           {showCodeModal && (
-            <div
-              className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center"
-              style={{
-                backgroundColor: "rgba(0,0,0,0.5)",
-                zIndex: 1050,
-              }}
-            >
-              <div className="bg-white p-4 rounded" style={{ width: "50%" }}>
-                <h5>Enter Code</h5>
-                <textarea
-                  className="form-control"
-                  rows="5"
-                  value={codeInput}
-                  onChange={(e) => setCodeInput(e.target.value)}
-                />
-                <div className="d-flex justify-content-end gap-2 mt-3">
-                  <button
-                    className="btn btn-secondary"
-                    onClick={() => setShowCodeModal(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button className="btn btn-primary" onClick={handleSaveCode}>
-                    Save
-                  </button>
+            <div className="modal d-block" tabIndex="-1" role="dialog">
+              <div className="modal-dialog" role="document">
+                <div className="modal-content">
+                  <div className="modal-header">
+                    <h5 className="modal-title">Insert Code</h5>
+                    <button
+                      type="button"
+                      className="btn-close"
+                      onClick={() => setShowCodeModal(false)}
+                    ></button>
+                  </div>
+                  <div className="modal-body">
+                    <textarea
+                      className="form-control"
+                      rows="10"
+                      value={codeInput}
+                      onChange={(e) => setCodeInput(e.target.value)}
+                      placeholder="Paste your code here..."
+                    ></textarea>
+                  </div>
+                  <div className="modal-footer">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={() => setShowCodeModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={handleSaveCode}
+                    >
+                      Insert
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           )}
+
+          {/* Additional Fields */}
+          <div className="row mt-4">
+            <div className="col-md-12">
+              <div className="mb-3">
+                <label className="form-label fw-semibold">
+                  Description <span className="text-danger">*</span>
+                </label>
+                <textarea
+                  className="form-control"
+                  rows="3"
+                  placeholder="Enter description"
+                ></textarea>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
